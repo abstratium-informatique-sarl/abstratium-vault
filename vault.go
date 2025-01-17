@@ -60,6 +60,19 @@ func init() {
 
 func VaultMain(w http.ResponseWriter, r *http.Request) {
 
+	// log all http header:
+	for name, values := range r.Header {
+		for _, value := range values {
+			fmt.Printf("%s: %s\n", name, value)
+		}
+	}
+
+	// log all environment variables:
+	for _, e := range os.Environ() {
+		pair := strings.Split(e, "=")
+		fmt.Printf("%s: %s\n", pair[0], pair[1])
+	}
+
 	userIPs := readUserIP(r)
 	w.Header().Add("X-Real-IP", userIPs.RealIp)
 	w.Header().Add("X-Forwarded-For", userIPs.ForwardedFor)

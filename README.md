@@ -40,7 +40,17 @@ Local pack:
 
 Run the docker image:
 
-    docker run -p8080:8080 abstratium-vault
+    docker run -it --rm -p8080:8080 abstratium-vault
+
+## Issues deploying to Google Cloud Run
+
+    pack inspect-image abstratium-vault
+
+    Processes:
+    TYPE                 SHELL        COMMAND                                 ARGS        WORK DIR
+    web (default)                     /layers/google.go.build/bin/main                    /workspace
+
+Copy the command `/layers/google.go.build/bin/main` and paste it into the Google Cloud Run container settings in the field called "Container Command".
 
 # Other stuff
 
