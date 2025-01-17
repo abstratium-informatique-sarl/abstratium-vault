@@ -22,10 +22,10 @@ import (
 )
 
 type IpAddresses struct {
-	RealIp string
+	RealIp       string
 	ForwardedFor string
-	RemoteAddr string
-	TestAddr string
+	RemoteAddr   string
+	TestAddr     string
 }
 
 // function to make printing IpAddresses nicer
@@ -35,14 +35,13 @@ func (ipAddresses *IpAddresses) String() string {
 
 var model = make(map[string]map[string]string)
 
-
 func init() {
 
 	allowedIPsEnvVar := os.Getenv("ALLOWED_IPS")
 	if allowedIPsEnvVar == "" {
 		allowedIPsEnvVar = "123.123.123.123:abc=def&ghi=jkl,127.0.0.1:def=2"
 	}
-fmt.Printf("Config: %v\n", allowedIPsEnvVar)
+	fmt.Printf("Config: %v\n", allowedIPsEnvVar)
 
 	for _, ipEntry := range strings.Split(allowedIPsEnvVar, ",") {
 		line := strings.Split(ipEntry, ":")
@@ -56,10 +55,10 @@ fmt.Printf("Config: %v\n", allowedIPsEnvVar)
 			model[ip][key] = value
 		}
 	}
-fmt.Printf("Config2: %v\n", model)
+	fmt.Printf("Config2: %v\n", model)
 }
 
-func Main(w http.ResponseWriter, r *http.Request) {
+func VaultMain(w http.ResponseWriter, r *http.Request) {
 
 	userIPs := readUserIP(r)
 	w.Header().Add("X-Real-IP", userIPs.RealIp)
@@ -70,10 +69,10 @@ func Main(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodGet {
 		keyname := r.URL.Query().Get("keyname")
 		tokens := model[userIPs.RealIp]
-fmt.Printf("tokens: %v\n", tokens)
+		fmt.Printf("tokens: %v\n", tokens)
 		if len(tokens) == 0 {
 			tokens = model[userIPs.TestAddr]
-fmt.Printf("tokens2: %v\n", tokens)
+			fmt.Printf("tokens2: %v\n", tokens)
 		}
 		if tokens != nil {
 			token := tokens[keyname]
@@ -97,5 +96,5 @@ func readUserIP(r *http.Request) *IpAddresses {
 	ipAddresses.ForwardedFor = r.Header.Get("X-Forwarded-For")
 	ipAddresses.RemoteAddr = r.RemoteAddr
 	ipAddresses.TestAddr = r.URL.Query().Get("testaddr")
-    return ipAddresses
+	return ipAddresses
 }
