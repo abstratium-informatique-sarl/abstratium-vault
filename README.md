@@ -26,6 +26,12 @@ Run unit tests as well as against the running server:
 
 # Build for Google Cloud Run
 
+Get Pack: https://buildpacks.io/docs/for-platform-operators/how-to/integrate-ci/pack/
+
+    sudo add-apt-repository ppa:cncf-buildpacks/pack-cli
+    sudo apt-get update
+    sudo apt-get install pack-cli
+
 Samples can be found here: https://github.com/GoogleCloudPlatform/buildpack-samples
 
 Local pack:

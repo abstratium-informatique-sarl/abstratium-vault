@@ -1,4 +1,4 @@
-// Copyright 2019 Google LLC
+// Copyright 2025 abstratium informatique sàrl
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package abstratriumvault
 
 import (
 	"fmt"
@@ -34,7 +34,8 @@ func (ipAddresses *IpAddresses) String() string {
 	return fmt.Sprintf("Real IP: %s, Forwarded For: %s, Remote Addr: %s, Test Addr: %s", ipAddresses.RealIp, ipAddresses.ForwardedFor, ipAddresses.RemoteAddr, ipAddresses.TestAddr)
 }
 
-func main() {
+
+func Main(w http.ResponseWriter, r *http.Request) {
 
 	allowedIPsEnvVar := os.Getenv("ALLOWED_IPS")
 	if allowedIPsEnvVar == "" {
