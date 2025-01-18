@@ -27,12 +27,11 @@ type IpAddresses struct {
 	ForwardedFor string
 	Forwarded    string
 	RemoteAddr   string
-	TestAddr     string
 }
 
 // function to make printing IpAddresses nicer
 func (ipAddresses *IpAddresses) String() string {
-	return fmt.Sprintf("Real IP: %s, Forwarded For: %s, Forwarded: %s, Remote Addr: %s, Test Addr: %s", ipAddresses.RealIp, ipAddresses.ForwardedFor, ipAddresses.Forwarded, ipAddresses.RemoteAddr, ipAddresses.TestAddr)
+	return fmt.Sprintf("Real IP: %s, Forwarded For: %s, Forwarded: %s, Remote Addr: %s", ipAddresses.RealIp, ipAddresses.ForwardedFor, ipAddresses.Forwarded, ipAddresses.RemoteAddr)
 }
 
 var model = make(map[string]map[string]string)
@@ -41,12 +40,12 @@ func init() {
 
 	allowedIPsEnvVar := os.Getenv("ALLOWED_IPS")
 	if allowedIPsEnvVar == "" {
-		allowedIPsEnvVar = "123.123.123.123:abc=def&ghi=jkl,127.0.0.1:def=2"
+		allowedIPsEnvVar = `123.123.123.123>abc=def&ghi=jkl,127.0.0.1>def=2,124.124.124.124>mno=pqr,2a02:0110:68a5:0000:0000:c24:0000:0001>stu=vwy`
 	}
 	fmt.Printf("Config: %v\n", allowedIPsEnvVar)
 
 	for _, ipEntry := range strings.Split(allowedIPsEnvVar, ",") {
-		line := strings.Split(ipEntry, ":")
+		line := strings.Split(ipEntry, ">")
 		ip := line[0]
 		data := line[1]
 		model[ip] = make(map[string]string)
@@ -62,6 +61,7 @@ func init() {
 
 func VaultMain(w http.ResponseWriter, r *http.Request) {
 
+	/*
 	// TODO deleteme log all http header:
 	fmt.Printf("=============\nHeaders\n")
 	for name, values := range r.Header {
@@ -76,6 +76,7 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 		pair := strings.Split(e, "=")
 		fmt.Printf("%s: %s\n", pair[0], pair[1])
 	}
+	*/
 
 	userIPs, err := readUserIP(r)
 	if err == nil {
@@ -84,15 +85,16 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Forwarded", userIPs.Forwarded)
 		w.Header().Add("X-Remote-Addr", userIPs.RemoteAddr)
 		w.Header().Add("X-Test-Addr", userIPs.RemoteAddr)
+
 		fmt.Printf("Request to URL %s from %s\n", r.URL, userIPs)
+
 		if r.Method == http.MethodGet {
 			keyname := r.URL.Query().Get("keyname")
-			tokens := model[userIPs.RealIp]
-			fmt.Printf("tokens: %v\n", tokens)
-			if len(tokens) == 0 {
-				tokens = model[userIPs.TestAddr]
-				fmt.Printf("tokens2: %v\n", tokens)
+			tokens := model[userIPs.Forwarded]
+			if tokens == nil {
+				tokens = model[userIPs.ForwardedFor]
 			}
+			fmt.Printf("tokens: %v\n", tokens)
 			if tokens != nil {
 				token := tokens[keyname]
 				if token != "" {
@@ -105,6 +107,9 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 		}
+	}
+	if err == nil {
+		err = fmt.Errorf("E1000")
 	}
 	w.WriteHeader(http.StatusUnauthorized)
 	w.Write([]byte(err.Error()))
@@ -123,9 +128,10 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 //     Forwarded: for="187.148.123.154";proto=https
 // 	   X-Forwarded-For: 123.123.123.123,187.148.123.154
 // if either header does not match the standard pattern, then refuse to answer
-const ipv4v6Regex = `(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(([0-9a-f]){1,4}(:([0-9a-f]){1,4}){7})`
-var xForwardedForRegex = fmt.Sprintf(`^%s$`, ipv4v6Regex) // may only contain a single ip address
-var forwardedRegex = fmt.Sprintf(`^for="%s";proto=http[s]?$`, ipv4v6Regex) // may only contain a single ip address
+const ipv4Regex = `[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}`
+const ipv6Regex = `([0-9a-f]){1,4}(:([0-9a-f]){1,4}){7}`
+var xForwardedForRegex = fmt.Sprintf(`(^%s$)|(^%s$)`, ipv4Regex, ipv6Regex) // may only contain a single ip address
+var forwardedRegex = fmt.Sprintf(`^for="(%s)|(%s)";proto=http[s]?$`, ipv4Regex, ipv6Regex) // may only contain a single ip address
 
 func readUserIP(r *http.Request) (*IpAddresses, error) {
 	ipAddresses := &IpAddresses{}
@@ -133,21 +139,27 @@ func readUserIP(r *http.Request) (*IpAddresses, error) {
 	ipAddresses.ForwardedFor = r.Header.Get("X-Forwarded-For")
 	ipAddresses.Forwarded = r.Header.Get("Forwarded")
 	ipAddresses.RemoteAddr = r.RemoteAddr
-	ipAddresses.TestAddr = r.URL.Query().Get("testaddr")
 
 	var err error
 	var match bool
 
-	match, err = regexp.MatchString(xForwardedForRegex, ipAddresses.ForwardedFor)
-	if err != nil { return nil, err}
-	if !match {
-		return nil, fmt.Errorf("x-forwarded-for header '%s' does not match expected pattern %s", ipAddresses.ForwardedFor, xForwardedForRegex)
+	if ipAddresses.ForwardedFor != "" {
+		match, err = regexp.MatchString(xForwardedForRegex, ipAddresses.ForwardedFor)
+		if err != nil { return nil, err}
+		if !match {
+			return nil, fmt.Errorf("x-forwarded-for header '%s' does not match expected pattern %s", ipAddresses.ForwardedFor, xForwardedForRegex)
+		}
 	}
 
-	match, err = regexp.MatchString(forwardedRegex, ipAddresses.Forwarded)
-	if err != nil { return nil, err}
-	if !match {
-		return nil, fmt.Errorf("forwarded header '%s' does not match expected pattern %s", ipAddresses.Forwarded, forwardedRegex)
+	if ipAddresses.Forwarded != "" {
+		match, err = regexp.MatchString(forwardedRegex, ipAddresses.Forwarded)
+		if err != nil { return nil, err}
+		if !match {
+			return nil, fmt.Errorf("forwarded header '%s' does not match expected pattern %s", ipAddresses.Forwarded, forwardedRegex)
+		}
+		// extract the ip address from the forwarded header
+		parts := strings.Split(ipAddresses.Forwarded, "\"")
+		ipAddresses.Forwarded = parts[1]
 	}
 
 	return ipAddresses, nil

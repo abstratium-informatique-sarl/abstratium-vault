@@ -1,11 +1,14 @@
 # substitute variables: https://cloud.google.com/build/docs/configuring-builds/substitute-variable-values
 # basis of this build to deploy to google cloud run: https://cloud.google.com/build/docs/deploying-builds/deploy-cloud-run
 steps:
-  - name: alpine:3.12
-    entrypoint: sh
+  # Run tests and save to file
+  - name: golang:1.23
+    entrypoint: /bin/bash
     args:
-      - 'echo'
-      - '"ANTHERE::$_SERVICE_NAME::"'
+      - -c
+      - |
+        go install github.com/jstemmer/go-junit-report/v2@latest
+        2>&1 go test -timeout 1m -v ./... | /go/bin/go-junit-report -set-exit-code -iocopy -out ${SHORT_SHA}_test_log.xml
   - name: gcr.io/k8s-skaffold/pack
     env:
       - GOOGLE_ENTRYPOINT=$_ENTRYPOINT
