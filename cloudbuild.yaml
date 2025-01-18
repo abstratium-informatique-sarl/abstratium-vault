@@ -5,7 +5,7 @@ steps:
     entrypoint: sh
     args:
       - 'echo'
-      - '"::$_SERVICE_NAM::-$SERVICE_NAME::"'
+      - '"ANTHERE::$_SERVICE_NAME::"'
   - name: gcr.io/k8s-skaffold/pack
     env:
       - GOOGLE_ENTRYPOINT=$_ENTRYPOINT
