@@ -1,11 +1,12 @@
 # abstratium-vault
 
-A simple vault that restricts access to data by IP address
-Cloud friendly, can for example be deployed with Google Cloud Run at very low cost, virtually free.
+A simple vault that restricts access to data by IP addresses.
+
+Cloud friendly, can for example be deployed with Google Cloud Run at very low cost, or even free.
 
 # Build and test locally with hotdeployment
 
-Install `air`.
+Install `air` for hotdeployment.
 
 Install air for hot reload (https://github.com/air-verse/air):
 
@@ -51,6 +52,13 @@ Run the docker image:
     web (default)                     /layers/google.go.build/bin/main                    /workspace
 
 Copy the command `/layers/google.go.build/bin/main` and paste it into the Google Cloud Run container settings in the field called "Container Command".
+
+## Convert default cloud run project to use `cloudbuild.yaml` file
+
+https://cloud.google.com/build/docs/deploying-builds/deploy-cloud-run
+
+Go into trigger, scroll to "Configuration", click "Cloud Build configuration file" (which is normally already selected)
+then go to Location and click Repository. If you need to, edit the Inline file first to copy its contents to a file in the repository, which forms the basis of the build which can now be customised.
 
 # Other stuff
 

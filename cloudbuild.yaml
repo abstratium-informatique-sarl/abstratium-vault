@@ -1,18 +1,62 @@
+# substitute variables: https://cloud.google.com/build/docs/configuring-builds/substitute-variable-values
+# basis of this build to deploy to google cloud run: https://cloud.google.com/build/docs/deploying-builds/deploy-cloud-run
 steps:
-# Your custom steps here
-- name: 'alpine/bash'
-  args: ['-c', 'echo $_SERVICE_NAME']
-- name: 'alpine/bash'
-  args: ['-c', 'echo $COMMIT_SHA']
-- name: 'alpine/bash'
-  args: ['-c', 'echo $BUILD_ID']
-- name: 'alpine/bash'
-  args: ['-c', 'echo $TRGGIER_ID']
-- name: 'gcr.io/k8s-skaffold/pack'
-  args: ['pack', 'build', 'europe-west3-docker.pkg.dev/abstratium-vault/cloud-run-source-deploy/abstratium-vault/abstratium-vault:$COMMIT_SHA', '--builder=gcr.io/buildpacks/builder:v1', '--network=cloudbuild', '--path=.', '--env=GOOGLE_ENTRYPOINT', '--env=GOOGLE_FUNCTION_TARGET']
-  # args: ['pack', 'build', '-t', 'gcr.io/$PROJECT_ID/[SERVICE-NAME]:$COMMIT_SHA', '.'] 
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'europe-west3-docker.pkg.dev/abstratium-vault/cloud-run-source-deploy/abstratium-vault/abstratium-vault:$COMMIT_SHA']
-- name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
-  args: ['gcloud', 'run', 'services', 'update', 'abstratium-vault', '--platform=managed', '--image=europe-west3-docker.pkg.dev/abstratium-vault/cloud-run-source-deploy/abstratium-vault/abstratium-vault:$COMMIT_SHA', '--labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$TRIGGER_ID', '--region=europe-west3', '--quiet']
-
+  - name: alpine:3.12
+    entrypoint: sh
+    args:
+      - 'echo'
+      - '"::$_SERVICE_NAM::-$SERVICE_NAME::"'
+  - name: gcr.io/k8s-skaffold/pack
+    env:
+      - GOOGLE_ENTRYPOINT=$_ENTRYPOINT
+      - GOOGLE_FUNCTION_TARGET=$_FUNCTION_TARGET
+    args:
+      - build
+      - >-
+        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - '--builder=gcr.io/buildpacks/builder:v1'
+      - '--network=cloudbuild'
+      - '--path=.'
+      - '--env=GOOGLE_ENTRYPOINT'
+      - '--env=GOOGLE_FUNCTION_TARGET'
+    id: Buildpack
+    entrypoint: pack
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - >-
+        $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+    id: Push
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk:slim'
+    args:
+      - run
+      - services
+      - update
+      - $_SERVICE_NAME
+      - '--platform=managed'
+      - >-
+        --image=$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+      - >-
+        --labels=managed-by=gcp-cloud-build-deploy-cloud-run,commit-sha=$COMMIT_SHA,gcb-build-id=$BUILD_ID,gcb-trigger-id=$_TRIGGER_ID
+      - '--region=$_DEPLOY_REGION'
+      - '--quiet'
+    id: Deploy
+    entrypoint: gcloud
+images:
+  - >-
+    $_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
+options:
+  substitutionOption: ALLOW_LOOSE
+  logging: CLOUD_LOGGING_ONLY
+substitutions:
+  _AR_HOSTNAME: europe-west3-docker.pkg.dev
+  _TRIGGER_ID: d9af568f-10ee-4dd9-af51-da192369dbb5
+  _PLATFORM: managed
+  _SERVICE_NAME: abstratium-vault
+  _ENTRYPOINT: VaultMain
+  _FUNCTION_TARGET: VaultMain
+  _DEPLOY_REGION: europe-west3
+tags:
+  - gcp-cloud-build-deploy-cloud-run
+  - gcp-cloud-build-deploy-cloud-run-managed
+  - abstratium-vault

@@ -16,14 +16,10 @@ package abstratriumvault
 
 import (
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"regexp"
 	"strings"
-
-	"golang.org/x/net/ipv4"
-	"google.golang.org/genproto/googleapis/chat/logging/v1"
 )
 
 type IpAddresses struct {
@@ -92,7 +88,6 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodGet {
 			keyname := r.URL.Query().Get("keyname")
 			tokens := model[userIPs.RealIp]
-			logging.Printf("tokens: %v\n", tokens)
 			fmt.Printf("tokens: %v\n", tokens)
 			if len(tokens) == 0 {
 				tokens = model[userIPs.TestAddr]
@@ -130,7 +125,7 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 // if either header does not match the standard pattern, then refuse to answer
 const ipv4v6Regex = `(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(([0-9a-f]){1,4}(:([0-9a-f]){1,4}){7})`
 var xForwardedForRegex = fmt.Sprintf(`^%s$`, ipv4v6Regex) // may only contain a single ip address
-var forwardedRegex = fmt.Sprintf(`^for="%s";proto=http[s]?$`) // may only contain a single ip address
+var forwardedRegex = fmt.Sprintf(`^for="%s";proto=http[s]?$`, ipv4v6Regex) // may only contain a single ip address
 
 func readUserIP(r *http.Request) (*IpAddresses, error) {
 	ipAddresses := &IpAddresses{}
@@ -146,13 +141,13 @@ func readUserIP(r *http.Request) (*IpAddresses, error) {
 	match, err = regexp.MatchString(xForwardedForRegex, ipAddresses.ForwardedFor)
 	if err != nil { return nil, err}
 	if !match {
-		return nil, fmt.Errorf("X-Forwarded-For header '%s' does not match expected pattern %s", ipAddresses.ForwardedFor, xForwardedForRegex)
+		return nil, fmt.Errorf("x-forwarded-for header '%s' does not match expected pattern %s", ipAddresses.ForwardedFor, xForwardedForRegex)
 	}
 
 	match, err = regexp.MatchString(forwardedRegex, ipAddresses.Forwarded)
 	if err != nil { return nil, err}
 	if !match {
-		return nil, fmt.Errorf("Forwarded header '%s' does not match expected pattern %s", ipAddresses.Forwarded, forwardedRegex)
+		return nil, fmt.Errorf("forwarded header '%s' does not match expected pattern %s", ipAddresses.Forwarded, forwardedRegex)
 	}
 
 	return ipAddresses, nil
