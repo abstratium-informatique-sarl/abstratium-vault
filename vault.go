@@ -94,7 +94,7 @@ func VaultMain(w http.ResponseWriter, r *http.Request) {
 			if tokens == nil {
 				tokens = model[userIPs.ForwardedFor]
 			}
-			fmt.Printf("tokens: %v\n", tokens)
+			fmt.Printf("tokens: %d\n", len(tokens))
 			if tokens != nil {
 				token := tokens[keyname]
 				if token != "" {
